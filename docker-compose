@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  video-render-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: video_render_api
+    ports:
+      - "8082:8080"
+    volumes:
+      - render_cache:/tmp/ffmpeg
+      - output_storage:/app/output
+      - logs:/app/logs
+    environment:
+      - FFMPEG_THREADS=3
+      - MAX_CONCURRENT_JOBS=2
+      - TEMP_DIR=/tmp/ffmpeg
+      - OUTPUT_DIR=/app/output
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '3.0'
+          memory: 12G
+        reservations:
+          cpus: '2.0'
+          memory: 8G
+
+volumes:
+  render_cache:
+    driver: local
+  output_storage:
+    driver: local  
+  logs:
+    driver: local
