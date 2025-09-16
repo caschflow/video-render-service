@@ -1,23 +1,21 @@
 # Dockerfile para servicio de renderizado de video
-FROM python:3.10-alpine
+FROM python:3.10-slim AS base
 
-# Instalar dependencias del sistema y compilación
-RUN apk add --no-cache \
+# Instalar dependencias del sistema
+RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     curl \
     bash \
-    build-base \
-    musl-dev \
-    python3-dev \
-    zlib-dev \
-    jpeg-dev \
-    freetype-dev \
-    && rm -rf /var/cache/apk/*
+    build-essential \
+    libjpeg-dev \
+    zlib1g-dev \
+    libfreetype6-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 # Directorio de trabajo
 WORKDIR /app
 
-# Copiar requerimientos en una capa separada (mejor caching)
+# Copiar requerimientos primero (cache)
 COPY requirements.txt .
 
 # Instalar dependencias de Python
@@ -26,7 +24,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Crear directorios necesarios
 RUN mkdir -p /tmp/ffmpeg /app/output /app/logs
 
-# Copiar código de la aplicación
+# Copiar el resto del código
 COPY render_api.py /app/
 
 # Exponer puerto
