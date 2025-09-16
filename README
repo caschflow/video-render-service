@@ -1,0 +1,172 @@
+# 🎬 Video Render API - Servicio de Renderizado
+
+API para combinar video + audio usando FFmpeg en contenedor Docker.
+
+## 📁 Estructura de Archivos
+
+Necesitas estos archivos en tu repositorio:
+
+```
+/
+├── Dockerfile           # Imagen del contenedor
+├── docker-compose.yml   # Configuración de servicios
+├── render_api.py        # API principal
+└── README.md           # Este archivo
+```
+
+## 🚀 Despliegue en Render
+
+### Paso 1: Preparar Archivos
+1. Crea un repositorio Git con los 3 archivos principales
+2. Sube todos los archivos a tu repositorio
+
+### Paso 2: Configurar Render
+1. Ve a [Render.com](https://render.com) 
+2. Conecta tu repositorio
+3. Crear **Web Service** con estas configuraciones:
+
+```yaml
+Service Type: Web Service
+Build Command: docker build -t video-render .
+Start Command: docker run -p 8080:8080 video-render
+```
+
+### Paso 3: Variables de Entorno (Opcionales)
+```
+FFMPEG_THREADS=3
+MAX_CONCURRENT_JOBS=2
+```
+
+## 🔧 Endpoints de la API
+
+### Health Check
+```http
+GET /health
+```
+Respuesta:
+```json
+{
+  "status": "healthy",
+  "system": {
+    "cpu_usage": "25%",
+    "memory_usage": "45%",
+    "active_jobs": 1
+  }
+}
+```
+
+### Crear Trabajo de Render
+```http
+POST /render
+Content-Type: application/json
+
+{
+  "video_url": "https://example.com/video.mp4",
+  "audio_url": "https://example.com/audio.wav",
+  "quality": "high"
+}
+```
+
+Respuesta:
+```json
+{
+  "job_id": "abc12345",
+  "status": "pending"
+}
+```
+
+### Verificar Estado
+```http
+GET /status/{job_id}
+```
+
+### Descargar Video Final
+```http
+GET /download/render_{job_id}.mp4
+```
+
+## 🎯 Uso desde n8n
+
+### 1. Crear Trabajo
+```javascript
+// HTTP Request Node
+const response = await this.helpers.httpRequest({
+  method: 'POST',
+  url: 'https://your-render-app.onrender.com/render',
+  body: {
+    video_url: items[0].json.video_url,
+    audio_url: items[0].json.audio_url,
+    quality: 'high'
+  },
+  json: true
+});
+
+return [{ json: { job_id: response.job_id } }];
+```
+
+### 2. Verificar Estado
+```javascript
+// Wait Node + HTTP Request Loop
+const jobId = items[0].json.job_id;
+const status = await this.helpers.httpRequest({
+  method: 'GET',
+  url: `https://your-render-app.onrender.com/status/${jobId}`,
+  json: true
+});
+
+return [{ json: status }];
+```
+
+### 3. Descargar Video
+```javascript
+// Cuando status === "completed"
+const downloadUrl = `https://your-render-app.onrender.com/download/render_${jobId}.mp4`;
+return [{ json: { download_url: downloadUrl } }];
+```
+
+## ⚡ Características
+
+- ✅ **Procesamiento Asíncrono**: Trabajos en background
+- ✅ **Control de Concurrencia**: Máximo 2 trabajos simultáneos
+- ✅ **Múltiples Calidades**: High, Medium, Low
+- ✅ **Health Check**: Monitoreo de sistema
+- ✅ **Logs Detallados**: Para debugging
+- ✅ **Limpieza Automática**: Archivos temporales
+- ✅ **Timeouts**: Evita trabajos colgados
+
+## 🔍 Solución de Problemas
+
+### Error "sh: syntax error"
+✅ **SOLUCIONADO**: Usando Dockerfile separado
+
+### Verificar Logs
+```bash
+# En desarrollo local
+docker-compose logs -f video-render-service
+
+# En Render
+Check "Logs" tab en tu servicio
+```
+
+### Verificar Health
+```bash
+curl https://your-app.onrender.com/health
+```
+
+## 📊 Monitoreo
+
+La API incluye métricas de sistema:
+- CPU y memoria usage
+- Trabajos activos/completados
+- Espacio en disco
+- Versión de FFmpeg
+
+## 🛡️ Límites y Consideraciones
+
+- **CPU**: 3 cores dedicados
+- **RAM**: 12GB límite
+- **Trabajos simultáneos**: 2 máximo
+- **Timeout**: 60s para descargas
+- **Almacenamiento**: Limpieza automática de temporales
+
+Tu servicio estará disponible en: `https://your-app.onrender.com`
